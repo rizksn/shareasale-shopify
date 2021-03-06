@@ -1,73 +1,7 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React from "react";
 import { Card, TextField } from "@shopify/polaris";
-import gql from "graphql-tag";
-import { useMutation, useQuery } from "react-apollo";
 
-const CREATE_SHAREASALE_TAG = gql`
-  mutation($input: ScriptTagInput!) {
-    scriptTagCreate(input: $input) {
-      scriptTag {
-        displayScope
-        id
-        src
-      }
-    }
-  }
-`;
-const CREATE_SHAREASALE_METAFIELD = gql`
-  mutation($input: PrivateMetafieldInput!) {
-    privateMetafieldUpsert(input: $input) {
-      privateMetafield {
-        namespace
-        key
-        value
-        valueType
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const GET_MASTERTAGID = gql`
-  {
-    shop {
-      privateMetafield(namespace: "shareasaleShopifyApp", key: "masterTagID") {
-        value
-        id
-      }
-    }
-  }
-`;
-
-const MasterTagID = () => {
-  const [masterTagID, setMasterTagID] = useState("");
-
-  const handleMasterTagIDChange = useCallback(
-    (newValue) => setMasterTagID(newValue),
-    [masterTagID]
-  );
-
-  const [createShareASaleTag] = useMutation(CREATE_SHAREASALE_TAG);
-  const [createPrivateMetafield] = useMutation(CREATE_SHAREASALE_METAFIELD);
-
-  const { loading: loading2, error: error2, data: data2 } = useQuery(
-    GET_MASTERTAGID
-  );
-
-  if (loading2) return <p>Loading...</p>;
-  if (error2) return <p>{`Error: ${error.message}`}</p>;
-
-  const MTID = data2.shop.privateMetafield.value;
-
-  // useEffect(() => {
-  //   setMasterTagID(MTID);
-  // }, [MTID]);
-
-  console.log(MTID);
-
+const MasterTagID = (props) => {
   return (
     <Card
       title="Master Tag ID:"
@@ -87,34 +21,45 @@ const MasterTagID = () => {
       primaryFooterAction={{
         content: "Update Master Tag ID",
         onAction: () => {
-          createPrivateMetafield({
-            variables: {
-              input: {
-                namespace: "shareasaleShopifyApp",
-                key: "masterTagID",
-                valueInput: {
-                  value: document.getElementById("masterTagID").value,
-                  valueType: "STRING",
-                },
-              },
-            },
-          }).then((x) => {
-            console.log(
-              `We set the master tag ID as ${x.data.privateMetafieldUpsert.privateMetafield.value}`
-            );
-          }),
-            createShareASaleTag({
+          // update master tag ID metafield
+          props
+            .createPrivateMetafield({
               variables: {
                 input: {
-                  src: `https://www.dwin1.com/${masterTagID}.js`,
-                  displayScope: "ONLINE_STORE",
+                  namespace: "shareasaleShopifyApp",
+                  key: "masterTagID",
+                  valueInput: {
+                    value: document.getElementById("masterTagID").value,
+                    valueType: "STRING",
+                  },
                 },
               },
-            }).then((x) => {
-              const shareasaleMasterTagID = document.getElementById(
-                "masterTagID"
+            })
+            .then((x) => {
+              console.log(
+                `updated masterTagID metafield: ${x.data.privateMetafieldUpsert.privateMetafield.value}`
               );
-              shareasaleMasterTagID.setAttribute("disabled", "");
+              props
+                .updateShareASaleTag({
+                  variables: {
+                    id: props.data2.shop.privateMetafield.value,
+                    input: {
+                      src: `https://www.dwin1.com/${props.masterTID}.js`,
+                      displayScope: "ONLINE_STORE",
+                    },
+                  },
+                })
+                .then((x) => {
+                  const shareasaleMasterTagID = document.getElementById(
+                    "masterTagID"
+                  );
+                  shareasaleMasterTagID.setAttribute("disabled", "");
+                })
+                .then((x) => {
+                  console.log(
+                    `We set the master tag as https://www.dwin1.com/${props.masterTID}.js`
+                  );
+                });
             });
         },
       }}
@@ -122,8 +67,9 @@ const MasterTagID = () => {
       <Card.Section>
         <TextField
           id="masterTagID"
-          value={masterTagID}
-          onChange={handleMasterTagIDChange}
+          name="masterTagID"
+          value={props.masterTID}
+          onChange={props.handleMasterTagIDChange}
           disabled
           type="number"
         ></TextField>

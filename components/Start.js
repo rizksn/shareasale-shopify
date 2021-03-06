@@ -1,59 +1,7 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 import { Page, Layout, EmptyState, Link, TextField } from "@shopify/polaris";
-import gql from "graphql-tag";
-import { useMutation, useQuery } from "react-apollo";
 
-const CREATE_SHAREASALE_TAG = gql`
-  mutation($input: ScriptTagInput!) {
-    scriptTagCreate(input: $input) {
-      scriptTag {
-        displayScope
-        id
-        src
-      }
-    }
-  }
-`;
-const CREATE_SHAREASALE_METAFIELD = gql`
-  mutation($input: PrivateMetafieldInput!) {
-    privateMetafieldUpsert(input: $input) {
-      privateMetafield {
-        namespace
-        key
-        value
-        valueType
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const GET_MERCHANTID = gql`
-  {
-    shop {
-      privateMetafield(namespace: "shareasaleShopifyApp", key: "mid") {
-        value
-        id
-      }
-    }
-  }
-`;
-
-const Start = () => {
-  const [value, setValue] = useState("");
-  const handleChange = useCallback((newValue) => setValue(newValue), []);
-
-  const [createShareASaleTag] = useMutation(CREATE_SHAREASALE_TAG);
-  const [createPrivateMetafield] = useMutation(CREATE_SHAREASALE_METAFIELD);
-
-  const { loading, error, data, refetch } = useQuery(GET_MERCHANTID);
-
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>{`Error: ${error.message}`}</p>;
-
+const Start = (props) => {
   return (
     <Page>
       <Layout>
@@ -69,59 +17,84 @@ const Start = () => {
                   .value.match(/\d+/)
               ) {
                 // Store the merchant ID in a private metafield
-                createPrivateMetafield({
-                  variables: {
-                    input: {
-                      namespace: "shareasaleShopifyApp",
-                      key: "mid",
-                      valueInput: {
-                        value: document.getElementById("shareasaleMerchantID")
-                          .value,
-                        valueType: "STRING",
+                props
+                  .createPrivateMetafield({
+                    variables: {
+                      input: {
+                        namespace: "shareasaleShopifyApp",
+                        key: "mid",
+                        valueInput: {
+                          value: document.getElementById("shareasaleMerchantID")
+                            .value,
+                          valueType: "STRING",
+                        },
                       },
                     },
-                  },
-                }).then((x) => {
-                  console.log(
-                    `We set the MID as ${x.data.privateMetafieldUpsert.privateMetafield.value}`
-                  );
-                  // console.log(`MID from query is ${MID}`);
-                });
-                createPrivateMetafield({
-                  variables: {
-                    input: {
-                      namespace: "shareasaleShopifyApp",
-                      key: "masterTagID",
-                      valueInput: {
-                        value: "19038",
-                        valueType: "STRING",
-                      },
-                    },
-                  },
-                }).then((x) => {
-                  console.log(
-                    `We set the master tag ID as ${x.data.privateMetafieldUpsert.privateMetafield.value}`
-                  );
-                  // console.log(`MID from query is ${MID}`);
-                });
+                  })
+                  .then((x) => {
+                    console.log(
+                      `MID Private Metafield: ${x.data.privateMetafieldUpsert.privateMetafield.value}`
+                    );
+                  });
                 // Add the master tag
-                createShareASaleTag({
-                  variables: {
-                    input: {
-                      src: "https://www.dwin1.com/19038.js",
-                      displayScope: "ONLINE_STORE",
+                props
+                  .createShareASaleTag({
+                    variables: {
+                      input: {
+                        src: "https://www.dwin1.com/19038.js",
+                        displayScope: "ONLINE_STORE",
+                      },
                     },
-                  },
-                });
+                  })
+                  .then((x) => {
+                    console.log(x);
+                    props.createPrivateMetafield({
+                      variables: {
+                        input: {
+                          namespace: "shareasaleShopifyApp",
+                          key: "masterTagShopifyID",
+                          valueInput: {
+                            value: x.data.scriptTagCreate.scriptTag.id,
+                            valueType: "STRING",
+                          },
+                        },
+                      },
+                    });
+                    console.log(
+                      `Stored the mastertag's Shopify ID: ${x.data.scriptTagCreate.scriptTag.id}`
+                    );
+                  })
+                  .then(() => {
+                    props
+                      .createPrivateMetafield({
+                        variables: {
+                          input: {
+                            namespace: "shareasaleShopifyApp",
+                            key: "masterTagID",
+                            valueInput: {
+                              value: "19038",
+                              valueType: "STRING",
+                            },
+                          },
+                        },
+                      })
+                      .then((x) => {
+                        console.log(
+                          `masterTagID Private Metafield: ${x.data.privateMetafieldUpsert.privateMetafield.value}`
+                        );
+                        // console.log(`MID from query is ${MID}`);
+                      });
+                  });
                 // Add the tracking tag
-                createShareASaleTag({
+                props.createShareASaleTag({
                   variables: {
                     input: {
                       src: "https://851af24c5736.ngrok.io/tracking.js",
                       displayScope: "ALL",
                     },
                   },
-                }).then(() => refetch());
+                });
+                // .then(() => refetch());
               } else {
                 alert("Please enter a valid merchant ID");
               }
@@ -149,8 +122,9 @@ const Start = () => {
         >
           <TextField
             id="shareasaleMerchantID"
-            value={value}
-            onChange={handleChange}
+            value={props.merchantID}
+            onChange={props.handleMerchantIDChange}
+            type="number"
           />
         </EmptyState>
       </Layout>

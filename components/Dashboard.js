@@ -1,59 +1,10 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React from "react";
 import { Page, Layout, Card, Stack, Link } from "@shopify/polaris";
+import gql from "graphql-tag";
 import MerchantID from "../components/MerchantID";
 import MasterTagID from "../components/MasterTagID";
 
-// const CREATE_SHAREASALE_TAG = gql`
-//   mutation($input: ScriptTagInput!) {
-//     scriptTagCreate(input: $input) {
-//       scriptTag {
-//         displayScope
-//         id
-//         src
-//       }
-//     }
-//   }
-// `;
-// const CREATE_SHAREASALE_METAFIELD = gql`
-//   mutation($input: PrivateMetafieldInput!) {
-//     privateMetafieldUpsert(input: $input) {
-//       privateMetafield {
-//         namespace
-//         key
-//         value
-//         valueType
-//       }
-//       userErrors {
-//         field
-//         message
-//       }
-//     }
-//   }
-// `;
-
-// const GET_MERCHANTID = gql`
-//   {
-//     shop {
-//       privateMetafield(namespace: "shareasaleShopifyApp", key: "mid") {
-//         value
-//         id
-//       }
-//     }
-//   }
-// `;
-
-// const GET_MASTERTAGID = gql`
-//   {
-//     shop {
-//       privateMetafield(namespace: "shareasaleShopifyApp", key: "masterTagID") {
-//         value
-//         id
-//       }
-//     }
-//   }
-// `;
-
-const Dashboard = () => {
+const Dashboard = (props) => {
   return (
     <Page title="ShareASale Shopify Tracker" narrowWidth>
       <Layout>
@@ -66,19 +17,35 @@ const Dashboard = () => {
         </Layout.Section>
 
         <Layout.Section>
-          <Card title="Documentation" sectioned>
+          <Card title="Wiki" sectioned>
             <Link url="https://shareasale.atlassian.net/wiki/spaces/SAS/overview">
-              Access ShareASale's Wikipedia
+              Access ShareASale's documentation & FAQs
             </Link>
           </Card>
         </Layout.Section>
 
         <Layout.Section oneThird>
-          <MerchantID />
+          <MerchantID
+            updateShareASaleTag={props.updateShareASaleTag}
+            createPrivateMetafield={props.createPrivateMetafield}
+            merchantID={props.merchantID}
+            handleMerchantIDChange={props.handleMerchantIDChange}
+          />
         </Layout.Section>
 
         <Layout.Section oneThird>
-          <MasterTagID />
+          <MasterTagID
+            updateShareASaleTag={props.updateShareASaleTag}
+            createPrivateMetafield={props.createPrivateMetafield}
+            masterTagShopifyID={props.masterTagShopifyID}
+            refetchMasterTagShopifyID={props.refetchMasterTagShopifyID}
+            masterTagID={props.masterTagID}
+            refetchMasterTagID={props.refetchMasterTagID}
+            data2={props.data2}
+            refetch2={props.refetch2}
+            masterTID={props.masterTID}
+            handleMasterTagIDChange={props.handleMasterTagIDChange}
+          />
         </Layout.Section>
       </Layout>
     </Page>

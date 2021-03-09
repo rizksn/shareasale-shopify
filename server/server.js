@@ -7,6 +7,26 @@ import Koa from "koa";
 import next from "next";
 import Router from "koa-router";
 import session from "koa-session";
+const fetch = require("node-fetch");
+
+const server = new Koa();
+const router = new Router();
+
+router.get("/api/order/", async (ctx) => {
+  let shareasaleOrderID = ctx.request.header.order_id,
+    shareasaleShop = ctx.request.header.shop;
+  const res = await fetch(
+    `https://${shareasaleShop}/admin/orders/${shareasaleOrderID}.json`,
+    {
+      headers: {
+        "X-Shopify-Access-Token": "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",
+      },
+    }
+  );
+  const order = await res.json();
+  ctx.status = 200;
+  ctx.body = order;
+});
 
 dotenv.config();
 const port = parseInt(process.env.PORT, 10) || 8081;
@@ -17,8 +37,6 @@ const app = next({
 const handle = app.getRequestHandler();
 const { SHOPIFY_API_SECRET, SHOPIFY_API_KEY, SCOPES } = process.env;
 app.prepare().then(() => {
-  const server = new Koa();
-  const router = new Router();
   server.use(
     session(
       {
@@ -38,6 +56,7 @@ app.prepare().then(() => {
       async afterAuth(ctx) {
         // Access token and shop available in ctx.state.shopify
         const { shop } = ctx.state.shopify;
+        console.log(ctx.state.shopify);
 
         // Redirect to app with shop parameter upon auth
         ctx.redirect(`/?shop=${shop}`);

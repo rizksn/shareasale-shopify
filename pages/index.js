@@ -99,6 +99,26 @@ const GET_MASTERTAG_SHOPIFY_ID = gql`
   }
 `;
 
+const CREATE_WEBHOOK_SUBSCRIPTION = gql`
+  mutation webhookSubscriptionCreate(
+    $topic: WebhookSubscriptionTopic!
+    $webhookSubscription: WebhookSubscriptionInput!
+  ) {
+    webhookSubscriptionCreate(
+      topic: $topic
+      webhookSubscription: $webhookSubscription
+    ) {
+      userErrors {
+        field
+        message
+      }
+      webhookSubscription {
+        id
+      }
+    }
+  }
+`;
+
 const Index = () => {
   const {
     merchantID,
@@ -110,6 +130,7 @@ const Index = () => {
   const [createShareASaleTag] = useMutation(CREATE_SHAREASALE_TAG);
   const [updateShareASaleTag] = useMutation(UPDATE_SHAREASLE_TAG);
   const [createPrivateMetafield] = useMutation(CREATE_SHAREASALE_METAFIELD);
+  const [createWebhookSubscription] = useMutation(CREATE_WEBHOOK_SUBSCRIPTION);
 
   const { data: masterTagID, refetch: refetchMasterTagID } = useQuery(
     GET_MASTERTAGID
@@ -136,6 +157,7 @@ const Index = () => {
         <Start
           updateShareASaleTag={updateShareASaleTag}
           createPrivateMetafield={createPrivateMetafield}
+          createWebhookSubscription={createWebhookSubscription}
           masterTagShopifyID={masterTagShopifyID}
           refetchMasterTagShopifyID={refetchMasterTagShopifyID}
           masterTagID={masterTagID}

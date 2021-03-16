@@ -7,25 +7,85 @@ import Koa from "koa";
 import next from "next";
 import Router from "koa-router";
 import session from "koa-session";
+import shareasale from "../functions";
+const koaBody = require("koa-body");
 const fetch = require("node-fetch");
 
 const server = new Koa();
 const router = new Router();
 
-router.get("/api/order/", async (ctx) => {
-  let shareasaleOrderID = ctx.request.header.order_id,
-    shareasaleShop = ctx.request.header.shop;
-  const res = await fetch(
-    `https://${shareasaleShop}/admin/orders/${shareasaleOrderID}.json`,
-    {
-      headers: {
-        "X-Shopify-Access-Token": "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",
-      },
-    }
-  );
-  const order = await res.json();
+router.post("/api/shareasalepostback/", koaBody(), async (ctx) => {
   ctx.status = 200;
-  ctx.body = order;
+  if (ctx.request.header["user-agent"] === "ShareASale Postback Agent") {
+    const { commission, userID, tracking } = ctx.request.body,
+      merchantID = ctx.request.query.merchantID;
+    if (merchantID) {
+      const account = await shareasale.getAccountByMerchantID(merchantID);
+      shareasale.addTagsToOrder(
+        account.shop,
+        tracking,
+        account.accessToken,
+        userID,
+        commission
+      );
+    }
+  }
+});
+
+router.post("/api/order/", koaBody(), async (ctx) => {
+  let trackingTagRequestBody = JSON.parse(ctx.request.body),
+    orderID = trackingTagRequestBody.order_id,
+    shop = trackingTagRequestBody.shop,
+    shareasaleAccount = await shareasale.getAccountByShop(shop);
+  const shopifyResponse = await shareasale.getOrder(
+    shop,
+    orderID,
+    shareasaleAccount.accessToken
+  );
+  ctx.status = 200;
+  ctx.body = shopifyResponse; //shareasale.processOrder(shopifyResponse.order);
+});
+
+router.post("/api/webhooks/", koaBody(), async (ctx) => {
+  ctx.status = 200;
+  var shopHeader = "x-shopify-shop-domain",
+    webhookHashHeader = "x-shopify-hmac-sha256",
+    webhookHeaders = ctx.request.header,
+    webhookTopic = webhookHeaders["x-shopify-topic"],
+    webhookShop = webhookHeaders["x-shopify-shop-domain"];
+
+  if (webhookTopic === "orders/updated") {
+    // Run the VOID API call for any fully refunded order
+    // Otherwise, run the EDIT call for any partial refunds
+    const shareasaleAccount = await shareasale.getAccountByShop(webhookShop),
+      {
+        merchantID,
+        shareasaleAPIToken,
+        shareasaleAPISecret,
+      } = shareasaleAccount;
+    try {
+      if (ctx.request.body.financial_status === "refunded") {
+        shareasale.voidOrder(
+          ctx.request.body,
+          merchantID,
+          shareasaleAPIToken,
+          shareasaleAPISecret
+        );
+      } else if (ctx.request.body.financial_status === "partially_refunded") {
+        shareasale.editOrder(
+          ctx.request.body,
+          merchantID,
+          shareasaleAPIToken,
+          shareasaleAPISecret
+        );
+      }
+    } catch (e) {
+      console.log(`Edit/Void Call Failed for ${webhookShop}: ${e}`);
+    }
+  }
+  if (webhookTopic === "app/uninstalled") {
+    shareasale.deleteAccountByShop(webhookShop);
+  }
 });
 
 dotenv.config();
@@ -48,6 +108,11 @@ app.prepare().then(() => {
   );
   server.keys = [SHOPIFY_API_SECRET];
   server.use(
+    graphQLProxy({
+      version: ApiVersion.October19,
+    })
+  );
+  server.use(
     createShopifyAuth({
       apiKey: SHOPIFY_API_KEY,
       secret: SHOPIFY_API_SECRET,
@@ -55,17 +120,11 @@ app.prepare().then(() => {
 
       async afterAuth(ctx) {
         // Access token and shop available in ctx.state.shopify
-        const { shop } = ctx.state.shopify;
-        console.log(ctx.state.shopify);
-
+        const { shop, accessToken } = ctx.state.shopify;
+        shareasale.addShop(shop, accessToken);
         // Redirect to app with shop parameter upon auth
         ctx.redirect(`/?shop=${shop}`);
       },
-    })
-  );
-  server.use(
-    graphQLProxy({
-      version: ApiVersion.October19,
     })
   );
   router.get("(.*)", verifyRequest(), async (ctx) => {
@@ -73,6 +132,7 @@ app.prepare().then(() => {
     ctx.respond = false;
     ctx.res.statusCode = 200;
   });
+
   server.use(router.allowedMethods());
   server.use(router.routes());
   server.listen(port, () => {

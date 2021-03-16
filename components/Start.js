@@ -1,5 +1,6 @@
 import React from "react";
 import { Page, Layout, EmptyState, Link, TextField } from "@shopify/polaris";
+const os = require("os");
 
 const Start = (props) => {
   return (
@@ -89,12 +90,39 @@ const Start = (props) => {
                 props.createShareASaleTag({
                   variables: {
                     input: {
-                      src: "https://851af24c5736.ngrok.io/tracking.js",
-                      displayScope: "ALL",
+                      src: `https://${os.hostname()}/shareasale-tracking.js?sasmid=${
+                        document.getElementById("shareasaleMerchantID").value
+                      }&ssmtid=19038`,
+                      displayScope: "ORDER_STATUS",
                     },
                   },
                 });
-                // .then(() => refetch());
+                props
+                  .createWebhookSubscription({
+                    variables: {
+                      topic: "APP_UNINSTALLED",
+                      webhookSubscription: {
+                        callbackUrl: `https://${os.hostname()}/api/webhooks/`,
+                        format: "JSON",
+                      },
+                    },
+                  })
+                  .then((x) => {
+                    console.log(`Created webhook subscription ${x}`);
+                  });
+                props
+                  .createWebhookSubscription({
+                    variables: {
+                      topic: "ORDERS_UPDATED",
+                      webhookSubscription: {
+                        callbackUrl: `https://${os.hostname()}/api/webhooks/`,
+                        format: "JSON",
+                      },
+                    },
+                  })
+                  .then((x) => {
+                    console.log(`Created webhook subscription ${x}`);
+                  });
               } else {
                 alert("Please enter a valid merchant ID");
               }

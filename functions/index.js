@@ -8,6 +8,8 @@ import getAccountByMerchantID from "./getAccountByMerchantID";
 import addShop from "./addShop";
 import updateMerchantID from "./updateMerchantID";
 import addTagsToOrder from "./addTagsToOrder";
+import getSubscriptionOrigin from "./getSubscriptionOrigin";
+import referenceTransaction from "./referenceTransaction";
 
 const shareasale = {
   processOrder,
@@ -20,6 +22,8 @@ const shareasale = {
   addShop,
   updateMerchantID,
   addTagsToOrder,
+  getSubscriptionOrigin,
+  referenceTransaction,
 };
 
 export default shareasale;

@@ -1,6 +1,5 @@
 import React from "react";
-import { Page, Layout, Card, Stack, Link } from "@shopify/polaris";
-import gql from "graphql-tag";
+import { Page, Layout, Card, Link } from "@shopify/polaris";
 import MerchantID from "../components/MerchantID";
 import MasterTagID from "../components/MasterTagID";
 
@@ -37,14 +36,11 @@ const Dashboard = (props) => {
           <MasterTagID
             updateShareASaleTag={props.updateShareASaleTag}
             createPrivateMetafield={props.createPrivateMetafield}
-            masterTagShopifyID={props.masterTagShopifyID}
-            refetchMasterTagShopifyID={props.refetchMasterTagShopifyID}
             masterTagID={props.masterTagID}
-            refetchMasterTagID={props.refetchMasterTagID}
-            data2={props.data2}
-            refetch2={props.refetch2}
+            masterTagShopID={props.masterTagShopID}
             masterTID={props.masterTID}
             handleMasterTagIDChange={props.handleMasterTagIDChange}
+            masterTagShopifyID={props.masterTagShopifyID}
           />
         </Layout.Section>
       </Layout>

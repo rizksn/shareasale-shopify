@@ -54,5 +54,4 @@ async function getOrder(shop, tracking, accessToken, userID, commission) {
     console.log(e);
   }
 }
-
 export default getOrder;

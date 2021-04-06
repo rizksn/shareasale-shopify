@@ -42,7 +42,7 @@ const MasterTagID = (props) => {
               props
                 .updateShareASaleTag({
                   variables: {
-                    id: props.data2.shop.privateMetafield.value,
+                    id: props.masterTagShopifyID.shop.privateMetafield.value,
                     input: {
                       src: `https://www.dwin1.com/${props.masterTID}.js`,
                       displayScope: "ONLINE_STORE",

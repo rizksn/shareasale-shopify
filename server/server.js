@@ -86,6 +86,46 @@ router.post("/api/webhooks/", koaBody(), async (ctx) => {
   if (webhookTopic === "app/uninstalled") {
     shareasale.deleteAccountByShop(webhookShop);
   }
+  // For recurring commissions
+  if (webhookTopic === "orders/create") {
+    console.log("it was a create");
+    const newOrder = ctx.request.body;
+    if (newOrder.source_name === "subscription_contract") {
+      // We need to find the origin order, which would have been a web checkout
+      // that contained the same SKUs as the new order
+      var subscriptionSkulist = [];
+      for (let x of newOrder.line_items) {
+        subscriptionSkulist.push(x.sku);
+      }
+      console.log(subscriptionSkulist);
+      const shareasaleAccount = await shareasale.getAccountByShop(webhookShop),
+        {
+          merchantID,
+          shareasaleAPIToken,
+          shareasaleAPISecret,
+        } = shareasaleAccount,
+        originTransaction = await shareasale.getSubscriptionOrigin(
+          webhookShop,
+          newOrder.customer.id,
+          subscriptionSkulist,
+          shareasaleAccount.accessToken
+        );
+      if (originTransaction) {
+        console.log(originTransaction);
+        shareasale.referenceTransaction(
+          originTransaction.orderNumber,
+          originTransaction.createdAt,
+          newOrder.subtotal_price,
+          newOrder.name,
+          merchantID,
+          shareasaleAPIToken,
+          shareasaleAPISecret
+        );
+      } else {
+        console.log("Failed ref transaction");
+      }
+    }
+  }
 });
 
 dotenv.config();

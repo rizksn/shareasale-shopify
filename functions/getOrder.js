@@ -27,7 +27,8 @@ async function getOrder(shop, orderID, accessToken) {
               ordersCount
             }
           }
-        }`,
+        }
+      `,
       queryData = await graphQLClient
         .request(query)
         .catch((e) => console.log(e));

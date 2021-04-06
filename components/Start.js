@@ -3,6 +3,9 @@ import { Page, Layout, EmptyState, Link, TextField } from "@shopify/polaris";
 const os = require("os");
 
 const Start = (props) => {
+  const refreshPage = () => {
+    window.location.reload(false);
+  };
   return (
     <Page>
       <Layout>
@@ -113,7 +116,7 @@ const Start = (props) => {
                 props
                   .createWebhookSubscription({
                     variables: {
-                      topic: "ORDERS_UPDATED",
+                      topic: "ORDERS_CREATE",
                       webhookSubscription: {
                         callbackUrl: `https://${os.hostname()}/api/webhooks/`,
                         format: "JSON",
@@ -123,6 +126,20 @@ const Start = (props) => {
                   .then((x) => {
                     console.log(`Created webhook subscription ${x}`);
                   });
+                props
+                  .createWebhookSubscription({
+                    variables: {
+                      topic: "ORDERS_UPDATED",
+                      webhookSubscription: {
+                        callbackUrl: `https://${os.hostname()}/api/webhooks/`,
+                        format: "JSON",
+                      },
+                    },
+                  })
+                  .then((x) => {
+                    console.log(`Created webhook subscription ${x}`);
+                  })
+                  .then(refreshPage);
               } else {
                 alert("Please enter a valid merchant ID");
               }

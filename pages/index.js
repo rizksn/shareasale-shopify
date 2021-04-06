@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useMutation, useQuery } from "react-apollo";
 import gql from "graphql-tag";
 
@@ -73,7 +73,7 @@ const GET_MASTERTAGID = gql`
   }
 `;
 
-const GET_MASTERTAG_SHOP_ID = gql`
+const GET_MASTERTAG_SHOPIFY_ID = gql`
   {
     shop {
       privateMetafield(
@@ -82,18 +82,6 @@ const GET_MASTERTAG_SHOP_ID = gql`
       ) {
         value
         id
-      }
-    }
-  }
-`;
-
-const GET_MASTERTAG_SHOPIFY_ID = gql`
-  {
-    scriptTags(first: 1, reverse: true) {
-      edges {
-        node {
-          id
-        }
       }
     }
   }
@@ -132,24 +120,12 @@ const Index = () => {
   const [createPrivateMetafield] = useMutation(CREATE_SHAREASALE_METAFIELD);
   const [createWebhookSubscription] = useMutation(CREATE_WEBHOOK_SUBSCRIPTION);
 
-  const { data: masterTagID, refetch: refetchMasterTagID } = useQuery(
-    GET_MASTERTAGID
-  );
-
-  const {
-    data: masterTagShopifyID,
-    refetch: refetchMasterTagShopifyID,
-  } = useQuery(GET_MASTERTAG_SHOPIFY_ID);
-
-  const { data: data2, refetch: refetch2 } = useQuery(GET_MASTERTAG_SHOP_ID);
-
-  const { loading, error, data } = useQuery(GET_MERCHANTID);
+  const { loading, error, data } = useQuery(GET_MERCHANTID, {});
+  const { data: masterTagShopifyID } = useQuery(GET_MASTERTAG_SHOPIFY_ID);
+  const { data: masterTagID } = useQuery(GET_MASTERTAGID);
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p>{`Error: ${error.message}`}</p>;
-
-  // masterTagID: masterTagID.shop.privateMetafield.value,
-  // shareasaleMerchantID: masterTagShopifyID.shop.privateMetafield.value,
 
   return (
     <>
@@ -158,10 +134,7 @@ const Index = () => {
           updateShareASaleTag={updateShareASaleTag}
           createPrivateMetafield={createPrivateMetafield}
           createWebhookSubscription={createWebhookSubscription}
-          masterTagShopifyID={masterTagShopifyID}
-          refetchMasterTagShopifyID={refetchMasterTagShopifyID}
           masterTagID={masterTagID}
-          refetchMasterTagID={refetchMasterTagID}
           createShareASaleTag={createShareASaleTag}
           merchantID={merchantID}
           masterTID={masterTID}
@@ -170,23 +143,14 @@ const Index = () => {
         />
       ) : (
         <Dashboard
-          // values={values}
-          // handleChange={handleChange}
           updateShareASaleTag={updateShareASaleTag}
           createPrivateMetafield={createPrivateMetafield}
-          masterTagShopifyID={masterTagShopifyID}
-          refetchMasterTagShopifyID={refetchMasterTagShopifyID}
           masterTagID={masterTagID}
-          refetchMasterTagID={refetchMasterTagID}
-          data2={data2}
-          refetch2={refetch2}
+          masterTagShopifyID={masterTagShopifyID}
           merchantID={merchantID}
           masterTID={masterTID}
           handleMerchantIDChange={handleMerchantIDChange}
           handleMasterTagIDChange={handleMasterTagIDChange}
-
-          // setMerchantID={setMerchantID}
-          // setMasterTagID={setMasterTagID}
         />
       )}
     </>

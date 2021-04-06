@@ -4,8 +4,7 @@
  */
 async function deleteAccountByShop(shopifyShop) {
   const MongoClient = require("mongodb").MongoClient;
-  const mongoUri =
-    "mongodb+srv://shareasale-shopify-app:n9qJzMhAROBRKfBC@shareasale.a8jed.mongodb.net/myFirstDatabase?retryWrites=true&w=majority";
+  const mongoUri = process.env.ATLAS_URI;
   const client = new MongoClient(mongoUri, {
     useNewUrlParser: true,
     useUnifiedTopology: true,

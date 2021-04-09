@@ -1,7 +1,6 @@
 import React from "react";
 import { useMutation, useQuery } from "react-apollo";
 import gql from "graphql-tag";
-
 import Start from "../components/Start";
 import Dashboard from "../components/Dashboard";
 import useForm from "../hooks/useForm";

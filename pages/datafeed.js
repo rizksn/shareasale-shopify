@@ -97,7 +97,7 @@ const Datafeed = () => {
 
   const getProducts = async () => {
     var productData = await fetch("https://allbirds.com/products.json");
-    // var productData = await fetch(`https://${shopDomain}/products.json`);
+    // var productData = await fetch(`https://${primaryDomain}/products.json`);
 
     var a = await productData.json();
 
@@ -155,7 +155,7 @@ const Datafeed = () => {
   }
 
   return (
-    <Page narrowWidth>
+    <Page title="ShareASale Shopify Tracker" narrowWidth>
       <Layout>
         <Layout.Section>
           <Card sectioned>
@@ -171,7 +171,6 @@ const Datafeed = () => {
               <p>Download your Shopify product datafeed</p>
               <br />
               <br />
-              {/* <Button primary style={{ margin: "0", padding: "0" }}> */}
               <CSVLink
                 id="CSVLink"
                 data={data}
@@ -187,18 +186,17 @@ const Datafeed = () => {
                   minWidth: "12rem",
                   maxWidth: "18rem",
                   display: "inline-flex",
-                  "justify-content": "center",
+                  justifyContent: "center",
                   alignItems: "center",
                   margin: 0,
                   padding: "0.7rem 1.6rem",
-                  "border-radius": "3px",
-                  "box-shadow":
+                  borderRadius: "3px",
+                  boxShadow:
                     "inset 0 1px 0 0 #6774c8, 0 1px 0 0 rgb(22 29 37 / 5%), 0 0 0 0 transparent",
                 }}
               >
                 Download Datafeed
               </CSVLink>
-              {/* </Button> */}
             </EmptyState>
           </Card>
         </Layout.Section>

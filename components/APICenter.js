@@ -3,8 +3,6 @@ import {
   Page,
   Layout,
   Card,
-  Button,
-  Link,
   Spinner,
   FormLayout,
   TextField,
@@ -12,10 +10,8 @@ import {
   InlineError,
   SettingToggle,
   TextStyle,
-  Icon,
 } from "@shopify/polaris";
-import { QuestionMarkMinor } from "@shopify/polaris-icons";
-import { useMutation, useQuery } from "react-apollo";
+import { useMutation } from "react-apollo";
 import gql from "graphql-tag";
 const os = require("os");
 
@@ -50,14 +46,7 @@ const DELETE_WEBHOOK_SUBSCRIPTION = gql`
   }
 `;
 
-const APICenter = () => {
-  const { loading: notReady, data: shopQuery } = useQuery(gql`
-    query {
-      shop {
-        myshopifyDomain
-      }
-    }
-  `);
+const APICenter = (props) => {
   const [createWebhookSubscription] = useMutation(CREATE_WEBHOOK_SUBSCRIPTION);
   const [deleteWebhookSubscription] = useMutation(DELETE_WEBHOOK_SUBSCRIPTION);
   // API credential states
@@ -137,25 +126,16 @@ const APICenter = () => {
     }
     setRecurringButtonSpinner(false);
   }
+
   const recurringContentStatus = recurringActive ? "Disable" : "Enable";
   const recurringTextStatus = recurringActive ? "enabled" : "disabled";
-  // Return spinner while we await the shop name to be returned
-  // Once it's returned, we can then use the current DB credentials
-  // to check if they are correct
-  if (notReady) {
-    return (
-      <Page>
-        <Layout>
-          <Spinner />
-        </Layout>
-      </Page>
-    );
-  }
+
   // Look to see if credentials have already been tested
-  // to prevent superfluous calls on re-render
+  // to prevent superfluous calls on re-render. Otherwise, test
+  // the credentials (if any) that are stored in the DB
   if (!checkedCredentials) {
     let prefetchBody = {
-      shop: shopQuery.shop.myshopifyDomain,
+      shop: props.shop,
       apiToken: null,
       apiSecret: null,
       preCheck: true,
@@ -189,6 +169,7 @@ const APICenter = () => {
     );
   }
   // If we don't have the correct credentials, then show config page
+  console.log(apiEnabled);
   if (!apiEnabled) {
     return (
       <Card sectioned>
@@ -242,7 +223,7 @@ const APICenter = () => {
   if (!checkedSettings) {
     fetch(`https://${os.hostname()}/api/settings/`, {
       method: "POST",
-      body: JSON.stringify({ shop: shopQuery.shop.myshopifyDomain }),
+      body: JSON.stringify({ shop: props.shop }),
     })
       .then((x) => {
         return x.json();
@@ -273,38 +254,36 @@ const APICenter = () => {
 
   if (apiEnabled) {
     return (
-      <>
-        <Page>
-          <Layout>
-            <Layout.Section>
-              <SettingToggle
-                action={{
-                  content: voidsContentStatus,
-                  onAction: voidsButtonClicked,
-                  loading: voidsButtonSpinner,
-                }}
-                enabled={voidsActive}
-              >
-                Automatic commission voiding is{" "}
-                <TextStyle variation="strong">{voidsTextStatus}</TextStyle>.
-              </SettingToggle>
-            </Layout.Section>
-            <Layout.Section>
-              <SettingToggle
-                action={{
-                  content: recurringContentStatus,
-                  onAction: recurringButtonClicked,
-                  loading: recurringButtonSpinner,
-                }}
-                enabled={recurringActive}
-              >
-                Recurring commissions for subscription renewals is{" "}
-                <TextStyle variation="strong">{recurringTextStatus}</TextStyle>.
-              </SettingToggle>
-            </Layout.Section>
-          </Layout>
-        </Page>
-      </>
+      <Page>
+        <Layout>
+          <Layout.Section>
+            <SettingToggle
+              action={{
+                content: voidsContentStatus,
+                onAction: voidsButtonClicked,
+                loading: voidsButtonSpinner,
+              }}
+              enabled={voidsActive}
+            >
+              Automatic commission voiding is{" "}
+              <TextStyle variation="strong">{voidsTextStatus}</TextStyle>.
+            </SettingToggle>
+          </Layout.Section>
+          <Layout.Section>
+            <SettingToggle
+              action={{
+                content: recurringContentStatus,
+                onAction: recurringButtonClicked,
+                loading: recurringButtonSpinner,
+              }}
+              enabled={recurringActive}
+            >
+              Recurring commissions for subscription renewals is{" "}
+              <TextStyle variation="strong">{recurringTextStatus}</TextStyle>.
+            </SettingToggle>
+          </Layout.Section>
+        </Layout>
+      </Page>
     );
   }
 
@@ -312,7 +291,7 @@ const APICenter = () => {
     let token = document.getElementById("apiToken").value.trim(),
       secret = document.getElementById("apiSecret").value.trim(),
       fetchBody = {
-        shop: shopQuery.shop.myshopifyDomain,
+        shop: props.shop,
         apiToken: token,
         apiSecret: secret,
       };
@@ -328,7 +307,7 @@ const APICenter = () => {
         if (!x.includes("Error Code")) {
           // If there wasn't an error code, store the credentials in the DB
           let editBody = {
-            shop: shopQuery.shop.myshopifyDomain,
+            shop: props.shop,
             shareasaleAPIToken: token,
             shareasaleAPISecret: secret,
           };
@@ -344,17 +323,17 @@ const APICenter = () => {
         }
         if (x.includes("Error Code 4002")) {
           handleErrorChange(
-            'On the ShareASale API page, change "Require IP address match for all API Calls" to "Require IP address match only for version 1.1 and lower"'
+            'In the ShareASale API Center, change "Require IP address match for all API Calls" to "Require IP address match only for version 1.1 and lower"'
           );
         }
         if (x.includes("Error Code 4003")) {
           handleErrorChange(
-            "The API Token doesn't match your ShareASale Merchant ID"
+            "Incorrect API Token. Visit the ShareASale API Center to obtain the token."
           );
         }
         if (x.includes("Error Code 4031")) {
           handleErrorChange(
-            "The API Token is correct, but the API Secret is incorrect"
+            "Incorrect API Secret. Visit the ShareASale API Center to obtain the API Secret."
           );
         }
       });
@@ -373,7 +352,7 @@ const APICenter = () => {
 
     if (subscription.data.webhookSubscriptionCreate.webhookSubscription) {
       let addSubscriptionBody = {
-        shop: shopQuery.shop.myshopifyDomain,
+        shop: props.shop,
       };
       if (topic === "ORDERS_UPDATED") {
         addSubscriptionBody.autoReconciliationWebhookID =
@@ -390,10 +369,9 @@ const APICenter = () => {
 
   async function deleteWebhook(topic) {
     let deleteSubscriptionBody = {
-        shop: shopQuery.shop.myshopifyDomain,
+        shop: props.shop,
       },
       webhookOptions = {};
-
     if (topic === "ORDERS_UPDATED") {
       deleteSubscriptionBody.autoReconciliationWebhookID = "delete";
       webhookOptions.id = voidsSubscriptionID;

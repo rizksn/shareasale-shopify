@@ -9,11 +9,88 @@ import Router from "koa-router";
 import session from "koa-session";
 import shareasale from "../functions";
 const koaBody = require("koa-body");
-const fetch = require("node-fetch");
 const cors = require("@koa/cors");
+const fetch = require("node-fetch");
 
 const server = new Koa();
 const router = new Router();
+
+router.post("/api/shareasalepostback/", koaBody(), async (ctx) => {
+  ctx.status = 200;
+  if (ctx.request.header["user-agent"] === "ShareASale Postback Agent") {
+    const { commission, userID, tracking } = ctx.request.body,
+      merchantID = ctx.request.query.merchantID;
+    if (merchantID) {
+      const account = await shareasale.getAccountByMerchantID(merchantID);
+      shareasale.addTagsToOrder(
+        account.shop,
+        tracking,
+        account.accessToken,
+        userID,
+        commission
+      );
+    }
+  }
+});
+router.post("/api/editshop/", koaBody(), async (ctx) => {
+  ctx.status = 200;
+  let requestBody = JSON.parse(ctx.request.body);
+  shareasale.editShop(requestBody);
+});
+// This endpoint is called to validate a merchant's API credentials
+router.post("/api/validate/", koaBody(), async (ctx) => {
+  ctx.status = 200;
+  let requestBody = JSON.parse(ctx.request.body),
+    { shop, apiToken, apiSecret, preCheck } = requestBody,
+    fakeOrder = {
+      name: "#01",
+      created_at: "01/01/2000",
+    },
+    shareasaleAccount = await shareasale.getAccountByShop(shop),
+    response = preCheck
+      ? await shareasale.voidOrder(
+          fakeOrder,
+          shareasaleAccount.merchantID,
+          shareasaleAccount.shareasaleAPIToken,
+          shareasaleAccount.shareasaleAPISecret
+        )
+      : await shareasale.voidOrder(
+          fakeOrder,
+          shareasaleAccount.merchantID,
+          apiToken,
+          apiSecret
+        );
+  ctx.body = response;
+});
+router.post("/api/settings/", koaBody(), async (ctx) => {
+  ctx.status = 200;
+  let requestBody = JSON.parse(ctx.request.body);
+  // Only extract settings here and not actual tokens, keys, etc.
+  const {
+    merchantID,
+    masterTagID,
+    masterTagShopifyID,
+    trackingTagShopifyID,
+    recurringCommissionsWebhookID,
+    autoReconciliationWebhookID,
+    storesConnectStoreID,
+    xtypeMode,
+    xtypeValue,
+    channelDeduplication,
+  } = await shareasale.getAccountByShop(requestBody.shop);
+  ctx.body = {
+    merchantID: merchantID,
+    masterTagID: masterTagID,
+    masterTagShopifyID: masterTagShopifyID,
+    trackingTagShopifyID: trackingTagShopifyID,
+    recurringCommissionsWebhookID: recurringCommissionsWebhookID,
+    autoReconciliationWebhookID: autoReconciliationWebhookID,
+    storesConnectStoreID: storesConnectStoreID,
+    xtypeMode: xtypeMode,
+    xtypeValue: xtypeValue,
+    channelDeduplication: channelDeduplication,
+  };
+});
 
 router.post("/api/order/", koaBody(), async (ctx) => {
   let trackingTagRequestBody = JSON.parse(ctx.request.body),
@@ -26,9 +103,8 @@ router.post("/api/order/", koaBody(), async (ctx) => {
     shareasaleAccount.accessToken
   );
   ctx.status = 200;
-  ctx.body = shopifyResponse; //shareasale.processOrder(shopifyResponse.order);
+  ctx.body = shopifyResponse;
 });
-
 router.post("/api/webhooks/", koaBody(), async (ctx) => {
   ctx.status = 200;
   var shopHeader = "x-shopify-shop-domain",
@@ -80,7 +156,6 @@ router.post("/api/webhooks/", koaBody(), async (ctx) => {
       for (let x of newOrder.line_items) {
         subscriptionSkulist.push(x.sku);
       }
-      console.log(subscriptionSkulist);
       const shareasaleAccount = await shareasale.getAccountByShop(webhookShop),
         {
           merchantID,
@@ -109,69 +184,6 @@ router.post("/api/webhooks/", koaBody(), async (ctx) => {
       }
     }
   }
-});
-
-router.post("/api/shareasalepostback/", koaBody(), async (ctx) => {
-  ctx.status = 200;
-  if (ctx.request.header["user-agent"] === "ShareASale Postback Agent") {
-    const { commission, userID, tracking } = ctx.request.body,
-      merchantID = ctx.request.query.merchantID;
-    if (merchantID) {
-      const account = await shareasale.getAccountByMerchantID(merchantID);
-      shareasale.addTagsToOrder(
-        account.shop,
-        tracking,
-        account.accessToken,
-        userID,
-        commission
-      );
-    }
-  }
-});
-
-router.post("/api/editshop/", koaBody(), async (ctx) => {
-  ctx.status = 200;
-  let requestBody = JSON.parse(ctx.request.body);
-  shareasale.editShop(requestBody);
-});
-
-// This endpoint is called to validate a merchant's API credentials
-router.post("/api/validate/", koaBody(), async (ctx) => {
-  ctx.status = 200;
-  let requestBody = JSON.parse(ctx.request.body),
-    { shop, apiToken, apiSecret, preCheck } = requestBody,
-    fakeOrder = {
-      name: "#01",
-      created_at: "01/01/2000",
-    },
-    shareasaleAccount = await shareasale.getAccountByShop(shop),
-    response = preCheck
-      ? await shareasale.voidOrder(
-          fakeOrder,
-          shareasaleAccount.merchantID,
-          shareasaleAccount.shareasaleAPIToken,
-          shareasaleAccount.shareasaleAPISecret
-        )
-      : await shareasale.voidOrder(
-          fakeOrder,
-          shareasaleAccount.merchantID,
-          apiToken,
-          apiSecret
-        );
-  ctx.body = response;
-});
-
-router.post("/api/settings/", koaBody(), async (ctx) => {
-  ctx.status = 200;
-  let requestBody = JSON.parse(ctx.request.body);
-  const {
-    recurringCommissionsWebhookID,
-    autoReconciliationWebhookID,
-  } = await shareasale.getAccountByShop(requestBody.shop);
-  ctx.body = {
-    recurringCommissionsWebhookID: recurringCommissionsWebhookID,
-    autoReconciliationWebhookID: autoReconciliationWebhookID,
-  };
 });
 
 dotenv.config();

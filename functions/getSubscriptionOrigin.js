@@ -33,20 +33,19 @@ async function getSubscriptionOrigin(
                         createdAt
                         lineItems (first: 15) {
                           edges {
-                            node {
-                              sku
-                            }
+                          node {
+                            sku
                           }
                         }
                       }
                     }
-                    pageInfo {
-                      hasNextPage
-                    }
+                  }
+                  pageInfo {
+                    hasNextPage
                   }
                 }
               }
-            `
+            }`
             : gql`
               query {
                 customer (id: "gid://shopify/Customer/${customerID}") {

@@ -25,22 +25,14 @@ const Dashboard = (props) => {
 
         <Layout.Section oneThird>
           <MerchantID
-            updateShareASaleTag={props.updateShareASaleTag}
-            createPrivateMetafield={props.createPrivateMetafield}
-            merchantID={props.merchantID}
-            handleMerchantIDChange={props.handleMerchantIDChange}
+            shop={props.shop}
+            merchantSettings={props.merchantSettings}
           />
         </Layout.Section>
-
         <Layout.Section oneThird>
           <MasterTagID
-            updateShareASaleTag={props.updateShareASaleTag}
-            createPrivateMetafield={props.createPrivateMetafield}
-            masterTagID={props.masterTagID}
-            masterTagShopID={props.masterTagShopID}
-            masterTID={props.masterTID}
-            handleMasterTagIDChange={props.handleMasterTagIDChange}
-            masterTagShopifyID={props.masterTagShopifyID}
+            shop={props.shop}
+            merchantSettings={props.merchantSettings}
           />
         </Layout.Section>
       </Layout>

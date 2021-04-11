@@ -5,8 +5,7 @@
  */
 async function addShop(shopifyShop, shopifyAccessToken) {
   const MongoClient = require("mongodb").MongoClient;
-  const mongoUri =
-    "mongodb+srv://shareasale-shopify-app:n9qJzMhAROBRKfBC@shareasale.a8jed.mongodb.net/myFirstDatabase?retryWrites=true&w=majority";
+  const mongoUri = process.env.ATLAS_URI;
   const client = new MongoClient(mongoUri, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -21,6 +20,8 @@ async function addShop(shopifyShop, shopifyAccessToken) {
       accessToken: shopifyAccessToken,
       merchantID: null,
       masterTagID: 19038,
+      masterTagShopifyID: null,
+      trackingTagShopifyID: null,
       shareasaleAPIToken: null,
       shareasaleAPISecret: null,
       shareasaleFTPUsername: null,
@@ -28,11 +29,9 @@ async function addShop(shopifyShop, shopifyAccessToken) {
       advancedAnalytics: false,
       recurringCommissionsWebhookID: null,
       autoReconciliationWebhookID: null,
-      storesConnect: false,
       storesConnectStoreID: null,
       xtypeMode: null,
-      dynamicXtypeValue: null,
-      staticXtypeValue: null,
+      xtypeValue: null,
       channelDeduplication: false,
     };
     const result = await accounts.insertOne(doc);

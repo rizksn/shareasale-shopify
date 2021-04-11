@@ -1,17 +1,50 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { Page, Layout, EmptyState, Link, TextField } from "@shopify/polaris";
-import { useQuery } from "react-apollo";
+import { useMutation } from "react-apollo";
 import gql from "graphql-tag";
 const os = require("os");
 
-const Start = (props) => {
-  const { data: shopQuery } = useQuery(gql`
-    query {
-      shop {
-        myshopifyDomain
+const CREATE_SHAREASALE_TAG = gql`
+  mutation($input: ScriptTagInput!) {
+    scriptTagCreate(input: $input) {
+      scriptTag {
+        displayScope
+        id
+        src
       }
     }
-  `);
+  }
+`;
+const CREATE_WEBHOOK_SUBSCRIPTION = gql`
+  mutation webhookSubscriptionCreate(
+    $topic: WebhookSubscriptionTopic!
+    $webhookSubscription: WebhookSubscriptionInput!
+  ) {
+    webhookSubscriptionCreate(
+      topic: $topic
+      webhookSubscription: $webhookSubscription
+    ) {
+      userErrors {
+        field
+        message
+      }
+      webhookSubscription {
+        id
+      }
+    }
+  }
+`;
+
+const Start = (props) => {
+  const [createWebhookSubscription] = useMutation(CREATE_WEBHOOK_SUBSCRIPTION);
+  const [createShareASaleTag] = useMutation(CREATE_SHAREASALE_TAG);
+  const [textFieldMerchantID, setTextFieldMerchantID] = useState("");
+  const handleMerchantIDTextFieldChange = useCallback((newValue) => {
+    if (newValue.match(/^\d*$/gi)) {
+      setTextFieldMerchantID(newValue);
+    }
+  }, []);
+
   return (
     <Page>
       <Layout>
@@ -21,10 +54,9 @@ const Start = (props) => {
             content: "Install Tracking",
             onAction: () => {
               merchantStart(
-                shopQuery.shop.myshopifyDomain,
-                props.createPrivateMetafield,
-                props.createShareASaleTag,
-                props.createWebhookSubscription
+                props.shop,
+                createShareASaleTag,
+                createWebhookSubscription
               );
             },
           }}
@@ -50,9 +82,8 @@ const Start = (props) => {
         >
           <TextField
             id="shareasaleMerchantID"
-            value={props.merchantID}
-            onChange={props.handleMerchantIDChange}
-            type="number"
+            value={textFieldMerchantID}
+            onChange={handleMerchantIDTextFieldChange}
           />
         </EmptyState>
       </Layout>
@@ -62,91 +93,40 @@ const Start = (props) => {
 
 async function merchantStart(
   shop,
-  createPrivateMetafield,
   createShareASaleTag,
   createWebhookSubscription
 ) {
   // Check to see if the text field has a numeric value
   if (document.getElementById("shareasaleMerchantID").value.match(/\d+/)) {
     const merchantID = document.getElementById("shareasaleMerchantID").value,
+      // Add the master tag
+      masterTag = await createShareASaleTag({
+        variables: {
+          input: {
+            src: "https://www.dwin1.com/19038.js",
+            displayScope: "ONLINE_STORE",
+          },
+        },
+      }),
+      trackingTag = await createShareASaleTag({
+        variables: {
+          input: {
+            src: `https://${os.hostname()}/shareasale-tracking.js?sasmid=${merchantID}&ssmtid=19038`,
+            displayScope: "ORDER_STATUS",
+          },
+        },
+      }),
       fetchBody = {
         shop: shop,
         merchantID: merchantID,
+        masterTagShopifyID: masterTag.data.scriptTagCreate.scriptTag.id,
+        trackingTagShopifyID: trackingTag.data.scriptTagCreate.scriptTag.id,
       };
-    fetch(`https://${os.hostname()}/api/editshop/`, {
+    await fetch(`https://${os.hostname()}/api/editshop/`, {
       method: "POST",
       body: JSON.stringify(fetchBody),
     });
-    // Store the merchant ID in a private metafield
-    createPrivateMetafield({
-      variables: {
-        input: {
-          namespace: "shareasaleShopifyApp",
-          key: "mid",
-          valueInput: {
-            value: merchantID,
-            valueType: "STRING",
-          },
-        },
-      },
-    });
-    createPrivateMetafield({
-      variables: {
-        input: {
-          namespace: "shareasaleShopifyApp",
-          key: "masterTagID",
-          valueInput: {
-            value: "19038",
-            valueType: "STRING",
-          },
-        },
-      },
-    });
-    // Add the master tag
-    createShareASaleTag({
-      variables: {
-        input: {
-          src: "https://www.dwin1.com/19038.js",
-          displayScope: "ONLINE_STORE",
-        },
-      },
-    }).then((x) => {
-      createPrivateMetafield({
-        variables: {
-          input: {
-            namespace: "shareasaleShopifyApp",
-            key: "masterTagShopifyID",
-            valueInput: {
-              value: x.data.scriptTagCreate.scriptTag.id,
-              valueType: "STRING",
-            },
-          },
-        },
-      });
-    });
-    // Add the tracking tag
-    createShareASaleTag({
-      variables: {
-        input: {
-          src: `https://${os.hostname()}/shareasale-tracking.js?sasmid=${merchantID}&ssmtid=19038`,
-          displayScope: "ORDER_STATUS",
-        },
-      },
-    }).then((x) => {
-      createPrivateMetafield({
-        variables: {
-          input: {
-            namespace: "shareasaleShopifyApp",
-            key: "trackingTagShopifyID",
-            valueInput: {
-              value: x.data.scriptTagCreate.scriptTag.id,
-              valueType: "STRING",
-            },
-          },
-        },
-      });
-    });
-    createWebhookSubscription({
+    await createWebhookSubscription({
       variables: {
         topic: "APP_UNINSTALLED",
         webhookSubscription: {

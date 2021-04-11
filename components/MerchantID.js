@@ -1,23 +1,19 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { Card, TextField } from "@shopify/polaris";
 import gql from "graphql-tag";
-import { useQuery, useMutation } from "react-apollo";
+import { useMutation } from "react-apollo";
 const os = require("os");
 
 const MerchantID = (props) => {
-  // First, look up the Shopify gid for the Tracking Tag
-  const { loading: loadingTrackingTag, data: trackingTagQuery } = useQuery(gql`
-    query {
-      shop {
-        privateMetafield(
-          namespace: "shareasaleShopifyApp"
-          key: "trackingTagShopifyID"
-        ) {
-          value
-        }
-      }
-    }
-  `);
+  const { merchantSettings } = props;
+  const [textFieldMerchantID, setTextFieldMerchantID] = useState(
+    merchantSettings.merchantID
+  );
+  const handleMerchantIDTextFieldChange = useCallback(
+    (newValue) => setTextFieldMerchantID(newValue),
+    []
+  );
+
   const [updateTrackingScript] = useMutation(
     gql`
       mutation($id: ID!, $input: ScriptTagInput!) {
@@ -30,9 +26,7 @@ const MerchantID = (props) => {
       }
     `
   );
-  if (loadingTrackingTag) {
-    return <p>Loading...</p>;
-  }
+
   return (
     <Card
       title="Merchant ID:"
@@ -54,45 +48,34 @@ const MerchantID = (props) => {
         onAction: () => {
           const merchantID = document.getElementById("shareasaleMerchantID")
             .value;
+          console.log(merchantSettings.trackingTagShopifyID);
           updateTrackingScript({
             variables: {
-              id: `${trackingTagQuery.shop.privateMetafield.value}`,
+              id: `${merchantSettings.trackingTagShopifyID}`,
               input: {
                 src: `https://${os.hostname()}/shareasale-tracking.js?sasmid=${merchantID}&ssmtid=${
-                  props.masterTID
+                  merchantSettings.masterTagID
+                }&scid=${merchantSettings.storesConnectStoreID}&xtm=${
+                  merchantSettings.xtypeMode
+                }&xtv=${merchantSettings.xtypeValue}&cd=${
+                  merchantSettings.channelDeduplication
                 }`,
               },
             },
-          }).then((x) => {
-            console.log("I think we did it... go check");
-          });
-          props
-            .createPrivateMetafield({
-              variables: {
-                input: {
-                  namespace: "shareasaleShopifyApp",
-                  key: "mid",
-                  valueInput: {
-                    value: document.getElementById("shareasaleMerchantID")
-                      .value,
-                    valueType: "STRING",
-                  },
-                },
-              },
+          })
+            .then((x) => {
+              console.log("I think we did it... go check");
             })
             .then((x) => {
               const fetchBody = {
-                shop: props.myshopifyDomain,
-                merchantID:
-                  x.data.privateMetafieldUpsert.privateMetafield.value,
+                shop: props.shop,
+                merchantID: merchantID,
               };
               fetch(`https://${os.hostname()}/api/editshop/`, {
                 method: "POST",
                 body: JSON.stringify(fetchBody),
               });
-              console.log(
-                `We set the MID as ${x.data.privateMetafieldUpsert.privateMetafield.value}`
-              );
+              console.log(`We set the MID as ${merchantID}`);
               const shareasaleMerchantID = document.getElementById(
                 "shareasaleMerchantID"
               );
@@ -104,8 +87,8 @@ const MerchantID = (props) => {
       <Card.Section>
         <TextField
           id="shareasaleMerchantID"
-          value={props.merchantID}
-          onChange={props.handleMerchantIDChange}
+          value={textFieldMerchantID.toString()}
+          onChange={handleMerchantIDTextFieldChange}
           disabled
           type="number"
         ></TextField>

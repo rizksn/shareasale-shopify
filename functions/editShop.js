@@ -1,44 +1,25 @@
 /**
  * Edits a merchant's listing in MongoDB
- * @param {string} shop The myshopify domain
- * @param {string} merchantID ShareASale merchant ID
- * @param {string} masterTagID Awin Master Tag ID
- * @param {string} apiToken ShareASale API Token
- * @param {string} apiSecret ShareASale API Secret Key
- * @param {string} shareasaleFTPUsername Username for ShareASale FTP
- * @param {string} shareasaleFTPPassword Password for ShareASale FTP
- * @param {boolean} advancedAnalytics Advanced Analytics package enabled?
- * @param {boolean} recurringCommissions Recurring commissions enabled?
- * @param {boolean} autoReconciliation Auto reconciliation enabled?
- * @param {boolean} storesConnect StoresConnect enabled?
- * @param {number} storesConnectStoreID Store ID for StoresConnect
- * @param {string} xtypeMode Enter 'static' or 'dynamic'
- * @param {string} dynamicXtypeValue Value for dynamic xtype
- * @param {string} staticXtypeValue Value for static xtype
- * @param {boolean} channelDeduplication Whether or not to dedupe by channel
+ * @param {object} input all variables should be passed as an object with the below properties:
+ * @param {string} input.shop The myshopify domain
+ * @param {string} input.merchantID ShareASale merchant ID
+ * @param {string} input.masterTagID Awin Master Tag ID
+ * @param {string} input.apiToken ShareASale API Token
+ * @param {string} input.apiSecret ShareASale API Secret Key
+ * @param {string} input.shareasaleFTPUsername Username for ShareASale FTP
+ * @param {string} input.shareasaleFTPPassword Password for ShareASale FTP
+ * @param {boolean} input.advancedAnalytics Advanced Analytics package enabled?
+ * @param {boolean} input.recurringCommissions Recurring commissions enabled?
+ * @param {boolean} input.autoReconciliation Auto reconciliation enabled?
+ * @param {boolean} input.storesConnect StoresConnect enabled?
+ * @param {number} input.storesConnectStoreID Store ID for StoresConnect
+ * @param {string} input.xtypeMode Enter 'static' or 'dynamic'
+ * @param {string} input.xtypeValue Value for static xtype
+ * @param {boolean} input.channelDeduplication Whether or not to dedupe by channel
  */
-async function editShop(
-  input /*
-  shop,
-  merchantID,
-  masterTagID,
-  apiToken,
-  apiSecret,
-  shareasaleFTPUsername,
-  shareasaleFTPPassword,
-  advancedAnalytics,
-  recurringCommissions,
-  autoReconciliation,
-  storesConnect,
-  storesConnectStoreID,
-  xtypeMode,
-  dynamicXtypeValue,
-  staticXtypeValue,
-  channelDeduplication*/
-) {
+async function editShop(input) {
   const MongoClient = require("mongodb").MongoClient;
-  const mongoUri =
-    "mongodb+srv://shareasale-shopify-app:n9qJzMhAROBRKfBC@shareasale.a8jed.mongodb.net/myFirstDatabase?retryWrites=true&w=majority";
+  const mongoUri = process.env.ATLAS_URI;
   const client = new MongoClient(mongoUri, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -65,6 +46,18 @@ async function editShop(
       updateDoc.$set = {
         ...updateDoc.$set,
         masterTagID: parseInt(input.masterTagID),
+      };
+    }
+    if (input.masterTagShopifyID) {
+      updateDoc.$set = {
+        ...updateDoc.$set,
+        masterTagShopifyID: input.masterTagShopifyID,
+      };
+    }
+    if (input.trackingTagShopifyID) {
+      updateDoc.$set = {
+        ...updateDoc.$set,
+        trackingTagShopifyID: input.trackingTagShopifyID,
       };
     }
     if (input.shareasaleAPIToken) {
@@ -115,12 +108,6 @@ async function editShop(
         autoReconciliationWebhookID: input.autoReconciliationWebhookID,
       };
     }
-    if (input.storesConnect) {
-      updateDoc.$set = {
-        ...updateDoc.$set,
-        storesConnect: input.storesConnect,
-      };
-    }
     if (input.storesConnectStoreID) {
       updateDoc.$set = {
         ...updateDoc.$set,
@@ -130,16 +117,10 @@ async function editShop(
     if (input.xtypeMode) {
       updateDoc.$set = { ...updateDoc.$set, xtypeMode: input.xtypeMode };
     }
-    if (input.dynamicXtypeValue) {
+    if (input.xtypeValue) {
       updateDoc.$set = {
         ...updateDoc.$set,
-        dynamicXtypeValue: input.dynamicXtypeValue,
-      };
-    }
-    if (input.staticXtypeValue) {
-      updateDoc.$set = {
-        ...updateDoc.$set,
-        staticXtypeValue: input.staticXtypeValue,
+        xtypeValue: input.xtypeValue,
       };
     }
     if (input.channelDeduplication) {

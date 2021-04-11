@@ -1,24 +1,21 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { Card, TextField } from "@shopify/polaris";
-import { useQuery, useMutation } from "react-apollo";
+import { useMutation } from "react-apollo";
 import gql from "graphql-tag";
 const os = require("os");
 
 const MasterTagID = (props) => {
-  // First, look up the Shopify gid for the Tracking Tag
-  const { loading: loadingTrackingTag, data: trackingTagQuery } = useQuery(gql`
-    query {
-      shop {
-        privateMetafield(
-          namespace: "shareasaleShopifyApp"
-          key: "trackingTagShopifyID"
-        ) {
-          value
-        }
-      }
-    }
-  `);
-  const [updateTrackingScript] = useMutation(
+  const { merchantSettings } = props;
+
+  const [textFieldMasterTagID, setTextFieldMasterTagID] = useState(
+    merchantSettings.masterTagID
+  );
+  const handleMasterTagIDChange = useCallback(
+    (newValue) => setTextFieldMasterTagID(newValue),
+    []
+  );
+
+  const [updateShareASaleTag] = useMutation(
     gql`
       mutation($id: ID!, $input: ScriptTagInput!) {
         scriptTagUpdate(id: $id, input: $input) {
@@ -30,9 +27,7 @@ const MasterTagID = (props) => {
       }
     `
   );
-  if (loadingTrackingTag) {
-    return <p>Loading...</p>;
-  }
+
   return (
     <Card
       title="Master Tag ID:"
@@ -51,67 +46,53 @@ const MasterTagID = (props) => {
       ]}
       primaryFooterAction={{
         content: "Update Master Tag ID",
-        onAction: () => {
-          updateTrackingScript({
+        onAction: async () => {
+          const newMasterTagID = document.getElementById("masterTagID").value;
+          // Rebuild tracking tag
+          updateShareASaleTag({
             variables: {
-              id: `${trackingTagQuery.shop.privateMetafield.value}`,
+              id: merchantSettings.trackingTagShopifyID,
               input: {
                 src: `https://${os.hostname()}/shareasale-tracking.js?sasmid=${
-                  props.merchantID
-                }&ssmtid=${document.getElementById("masterTagID").value}`,
+                  merchantSettings.merchantID
+                }&ssmtid=${newMasterTagID}&scid=${
+                  merchantSettings.storesConnectStoreID
+                }&xtm=${merchantSettings.xtypeMode}&xtv=${
+                  merchantSettings.xtypeValue
+                }&cd=${merchantSettings.channelDeduplication}`,
               },
             },
           }).then((x) => {
             console.log("I think we did it... go check");
           });
-          // update master tag ID metafield
-          props
-            .createPrivateMetafield({
-              variables: {
-                input: {
-                  namespace: "shareasaleShopifyApp",
-                  key: "masterTagID",
-                  valueInput: {
-                    value: document.getElementById("masterTagID").value,
-                    valueType: "STRING",
-                  },
-                },
+          // update master tag with new ID
+          updateShareASaleTag({
+            variables: {
+              id: merchantSettings.masterTagShopifyID,
+              input: {
+                src: `https://www.dwin1.com/${newMasterTagID}.js`,
               },
+            },
+          })
+            .then((x) => {
+              // Update ID Number in MongoDB
+              const fetchBody = {
+                shop: props.shop,
+                masterTagID: newMasterTagID,
+              };
+              fetch(`https://${os.hostname()}/api/editshop/`, {
+                method: "POST",
+                body: JSON.stringify(fetchBody),
+              });
+              const shareasaleMasterTagID = document.getElementById(
+                "masterTagID"
+              );
+              shareasaleMasterTagID.setAttribute("disabled", "");
             })
             .then((x) => {
               console.log(
-                `updated masterTagID metafield: ${x.data.privateMetafieldUpsert.privateMetafield.value}`
+                `We set the master tag as https://www.dwin1.com/${newMasterTagID}.js`
               );
-              props
-                .updateShareASaleTag({
-                  variables: {
-                    id: props.masterTagShopifyID.shop.privateMetafield.value,
-                    input: {
-                      src: `https://www.dwin1.com/${props.masterTID}.js`,
-                      displayScope: "ONLINE_STORE",
-                    },
-                  },
-                })
-                .then((x) => {
-                  // Update ID Number in MongoDB
-                  const fetchBody = {
-                    shop: props.myshopifyDomain,
-                    masterTagID: props.masterTID,
-                  };
-                  fetch(`https://${os.hostname()}/api/editshop/`, {
-                    method: "POST",
-                    body: JSON.stringify(fetchBody),
-                  });
-                  const shareasaleMasterTagID = document.getElementById(
-                    "masterTagID"
-                  );
-                  shareasaleMasterTagID.setAttribute("disabled", "");
-                })
-                .then((x) => {
-                  console.log(
-                    `We set the master tag as https://www.dwin1.com/${props.masterTID}.js`
-                  );
-                });
             });
         },
       }}
@@ -120,8 +101,8 @@ const MasterTagID = (props) => {
         <TextField
           id="masterTagID"
           name="masterTagID"
-          value={props.masterTID}
-          onChange={props.handleMasterTagIDChange}
+          value={textFieldMasterTagID.toString()}
+          onChange={handleMasterTagIDChange}
           disabled
           type="number"
         ></TextField>

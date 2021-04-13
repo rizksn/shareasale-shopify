@@ -23,13 +23,13 @@ const Dashboard = (props) => {
           </Card>
         </Layout.Section>
 
-        <Layout.Section oneThird>
+        <Layout.Section>
           <MerchantID
             shop={props.shop}
             merchantSettings={props.merchantSettings}
           />
         </Layout.Section>
-        <Layout.Section oneThird>
+        <Layout.Section>
           <MasterTagID
             shop={props.shop}
             merchantSettings={props.merchantSettings}

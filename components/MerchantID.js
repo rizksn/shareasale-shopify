@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { Card, TextField } from "@shopify/polaris";
+import { Card, Stack, TextField } from "@shopify/polaris";
 import gql from "graphql-tag";
 import { useMutation } from "react-apollo";
 const os = require("os");
@@ -85,15 +85,26 @@ const MerchantID = (props) => {
       }}
     >
       <Card.Section>
-        <TextField
-          id="shareasaleMerchantID"
-          value={textFieldMerchantID.toString()}
-          onChange={handleMerchantIDTextFieldChange}
-          disabled
-          type="number"
-        ></TextField>
-        <br />
-        <p>Note: ID number should match your ShareASale merchant ID</p>
+        <Stack distribution="fill" wrap={false} spacing="extraLoose">
+          <div>
+            <p>ID number should match your ShareASale merchant ID</p>
+            <br />
+            <p>
+              Your merchant ID is listed in the upper left corner of your
+              ShareASale merchant account
+            </p>
+          </div>
+          <div>
+            <TextField
+              id="shareasaleMerchantID"
+              value={textFieldMerchantID.toString()}
+              onChange={handleMerchantIDTextFieldChange}
+              disabled
+              type="number"
+            />
+            <br />
+          </div>
+        </Stack>
       </Card.Section>
     </Card>
   );

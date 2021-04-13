@@ -1,18 +1,9 @@
-import React, { useEffect, useState, useCallback } from "react";
-import {
-  Page,
-  Layout,
-  Card,
-  Spinner,
-  FormLayout,
-  TextField,
-  PageActions,
-  InlineError,
-  SettingToggle,
-  TextStyle,
-} from "@shopify/polaris";
+import React, { useState, useCallback } from "react";
+import { Page, Layout, Spinner } from "@shopify/polaris";
 import { useMutation } from "react-apollo";
 import gql from "graphql-tag";
+import APICredentials from "./APICredentials";
+import APISettings from "./APISettings";
 const os = require("os");
 
 const CREATE_WEBHOOK_SUBSCRIPTION = gql`
@@ -47,6 +38,7 @@ const DELETE_WEBHOOK_SUBSCRIPTION = gql`
 `;
 
 const APICenter = (props) => {
+  const { merchantSettings } = props;
   const [createWebhookSubscription] = useMutation(CREATE_WEBHOOK_SUBSCRIPTION);
   const [deleteWebhookSubscription] = useMutation(DELETE_WEBHOOK_SUBSCRIPTION);
   // API credential states
@@ -95,7 +87,6 @@ const APICenter = (props) => {
     }
     setVoidsButtonSpinner(false);
   }
-
   const voidsContentStatus = voidsActive ? "Disable" : "Enable";
   const voidsTextStatus = voidsActive ? "enabled" : "disabled";
   // Recurring commission states
@@ -126,7 +117,6 @@ const APICenter = (props) => {
     }
     setRecurringButtonSpinner(false);
   }
-
   const recurringContentStatus = recurringActive ? "Disable" : "Enable";
   const recurringTextStatus = recurringActive ? "enabled" : "disabled";
 
@@ -169,52 +159,18 @@ const APICenter = (props) => {
     );
   }
   // If we don't have the correct credentials, then show config page
-  console.log(apiEnabled);
   if (!apiEnabled) {
     return (
-      <Card sectioned>
-        <Layout>
-          <Layout.AnnotatedSection
-            title="API Credentials"
-            description="Adding your API credentials will allow you to automate certain tasks such as voiding commissions on refunded orders. Click the API Center button to get your credentials."
-          >
-            <FormLayout>
-              <TextField
-                label="API Token"
-                id="apiToken"
-                onChange={handleTokenChange}
-                value={tokenValue}
-              />
-              <TextField
-                label="API Secret"
-                id="apiSecret"
-                onChange={handleKeyChange}
-                value={keyValue}
-              />
-            </FormLayout>
-
-            <PageActions
-              primaryAction={{
-                content: "Save",
-                loading: buttonState,
-                onAction: () => {
-                  setButtonState(true);
-                  attemptAPIcall();
-                },
-              }}
-              secondaryActions={[
-                {
-                  content: "ShareASale API Center",
-                  destructive: false,
-                  external: true,
-                  url: "https://account.shareasale.com/m-apiips.cfm",
-                },
-              ]}
-            />
-          </Layout.AnnotatedSection>
-          <InlineError message={errorValue} fieldID="apiError" />
-        </Layout>
-      </Card>
+      <APICredentials
+        handleTokenChange={handleTokenChange}
+        tokenValue={tokenValue}
+        handleKeyChange={handleKeyChange}
+        keyValue={keyValue}
+        buttonState={buttonState}
+        setButtonState={setButtonState}
+        errorValue={errorValue}
+        attemptAPIcall={attemptAPIcall}
+      />
     );
   }
   // If we currently have the correct credentials in the DB,
@@ -254,36 +210,18 @@ const APICenter = (props) => {
 
   if (apiEnabled) {
     return (
-      <Page>
-        <Layout>
-          <Layout.Section>
-            <SettingToggle
-              action={{
-                content: voidsContentStatus,
-                onAction: voidsButtonClicked,
-                loading: voidsButtonSpinner,
-              }}
-              enabled={voidsActive}
-            >
-              Automatic commission voiding is{" "}
-              <TextStyle variation="strong">{voidsTextStatus}</TextStyle>.
-            </SettingToggle>
-          </Layout.Section>
-          <Layout.Section>
-            <SettingToggle
-              action={{
-                content: recurringContentStatus,
-                onAction: recurringButtonClicked,
-                loading: recurringButtonSpinner,
-              }}
-              enabled={recurringActive}
-            >
-              Recurring commissions for subscription renewals is{" "}
-              <TextStyle variation="strong">{recurringTextStatus}</TextStyle>.
-            </SettingToggle>
-          </Layout.Section>
-        </Layout>
-      </Page>
+      <APISettings
+        voidsContentStatus={voidsContentStatus}
+        voidsButtonClicked={voidsButtonClicked}
+        voidsButtonSpinner={voidsButtonSpinner}
+        voidsActive={voidsActive}
+        voidsTextStatus={voidsTextStatus}
+        recurringContentStatus={recurringContentStatus}
+        recurringButtonClicked={recurringButtonClicked}
+        recurringButtonSpinner={recurringButtonSpinner}
+        recurringActive={recurringActive}
+        recurringTextStatus={recurringTextStatus}
+      />
     );
   }
 
@@ -380,11 +318,9 @@ const APICenter = (props) => {
       deleteSubscriptionBody.recurringCommissionsWebhookID = "delete";
       webhookOptions.id = recurringSubscriptionID;
     }
-
     const subscription = await deleteWebhookSubscription({
       variables: webhookOptions,
     });
-
     if (
       subscription.data.webhookSubscriptionDelete.deletedWebhookSubscriptionId
     ) {
@@ -397,6 +333,7 @@ const APICenter = (props) => {
    * Adds information to the shop listing in Mongo
    * @param {object} body Input for the shop edit
    */
+
   async function editShop(body) {
     const result = await fetch(`https://${os.hostname()}/api/editshop/`, {
       method: "POST",

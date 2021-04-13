@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { Card, TextField } from "@shopify/polaris";
+import { Card, Stack, TextField } from "@shopify/polaris";
 import { useMutation } from "react-apollo";
 import gql from "graphql-tag";
 const os = require("os");
@@ -10,6 +10,7 @@ const MasterTagID = (props) => {
   const [textFieldMasterTagID, setTextFieldMasterTagID] = useState(
     merchantSettings.masterTagID
   );
+
   const handleMasterTagIDChange = useCallback(
     (newValue) => setTextFieldMasterTagID(newValue),
     []
@@ -98,18 +99,22 @@ const MasterTagID = (props) => {
       }}
     >
       <Card.Section>
-        <TextField
-          id="masterTagID"
-          name="masterTagID"
-          value={textFieldMasterTagID.toString()}
-          onChange={handleMasterTagIDChange}
-          disabled
-          type="number"
-        ></TextField>
-        <br />
-        <p>
-          Note: please do not edit the master tag ID without prior authorization
-        </p>
+        <Stack distribution="fill" wrap={false} spacing="extraLoose">
+          <p>
+            Note: please do not edit/update the master tag ID without prior
+            authorization
+          </p>
+          <div>
+            <TextField
+              id="masterTagID"
+              name="masterTagID"
+              value={textFieldMasterTagID.toString()}
+              onChange={handleMasterTagIDChange}
+              disabled
+              type="number"
+            ></TextField>
+          </div>
+        </Stack>
       </Card.Section>
     </Card>
   );

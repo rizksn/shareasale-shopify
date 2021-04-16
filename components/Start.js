@@ -36,6 +36,8 @@ const CREATE_WEBHOOK_SUBSCRIPTION = gql`
 `;
 
 const Start = (props) => {
+  const [installationLoading, installationLoadingUpdate] = useState(false);
+  // const [successIcon, successIconUpdate] = useState(CircleTickOutlineMinor);
   const [createWebhookSubscription] = useMutation(CREATE_WEBHOOK_SUBSCRIPTION);
   const [createShareASaleTag] = useMutation(CREATE_SHAREASALE_TAG);
   const [textFieldMerchantID, setTextFieldMerchantID] = useState("");
@@ -44,7 +46,10 @@ const Start = (props) => {
       setTextFieldMerchantID(newValue);
     }
   }, []);
-
+  /*
+  console.log(CircleTickMajor);
+  console.log(successIcon.type);
+  */
   return (
     <Page>
       <Layout>
@@ -52,13 +57,16 @@ const Start = (props) => {
           heading="To start, enter your ShareASale Merchant ID"
           action={{
             content: "Install Tracking",
+            /*icon: successIcon,*/
             onAction: () => {
+              installationLoadingUpdate(true);
               merchantStart(
                 props.shop,
                 createShareASaleTag,
                 createWebhookSubscription
               );
             },
+            loading: installationLoading,
           }}
           secondaryAction={{
             content: "ShareASale Login",
@@ -89,55 +97,65 @@ const Start = (props) => {
       </Layout>
     </Page>
   );
-};
 
-async function merchantStart(
-  shop,
-  createShareASaleTag,
-  createWebhookSubscription
-) {
-  // Check to see if the text field has a numeric value
-  if (document.getElementById("shareasaleMerchantID").value.match(/\d+/)) {
-    const merchantID = document.getElementById("shareasaleMerchantID").value,
-      // Add the master tag
-      masterTag = await createShareASaleTag({
+  async function merchantStart(
+    shop,
+    createShareASaleTag,
+    createWebhookSubscription
+  ) {
+    // Check to see if the text field has a numeric value
+    if (document.getElementById("shareasaleMerchantID").value.match(/\d+/)) {
+      const merchantID = document.getElementById("shareasaleMerchantID").value,
+        // Add the master tag
+        masterTag = await createShareASaleTag({
+          variables: {
+            input: {
+              src: "https://www.dwin1.com/19038.js",
+              displayScope: "ONLINE_STORE",
+            },
+          },
+        }),
+        deduplicationTag = await createShareASaleTag({
+          variables: {
+            input: {
+              src: `https://${os.hostname()}/deduplication.js`,
+              displayScope: "ONLINE_STORE",
+            },
+          },
+        }),
+        trackingTag = await createShareASaleTag({
+          variables: {
+            input: {
+              src: `https://${os.hostname()}/shareasale-tracking.js?sasmid=${merchantID}&ssmtid=19038`,
+              displayScope: "ORDER_STATUS",
+            },
+          },
+        }),
+        fetchBody = {
+          shop: shop,
+          merchantID: merchantID,
+          masterTagShopifyID: masterTag.data.scriptTagCreate.scriptTag.id,
+          trackingTagShopifyID: trackingTag.data.scriptTagCreate.scriptTag.id,
+        };
+      await fetch(`https://${os.hostname()}/api/editshop/`, {
+        method: "POST",
+        body: JSON.stringify(fetchBody),
+      });
+      await createWebhookSubscription({
         variables: {
-          input: {
-            src: "https://www.dwin1.com/19038.js",
-            displayScope: "ONLINE_STORE",
+          topic: "APP_UNINSTALLED",
+          webhookSubscription: {
+            callbackUrl: `https://${os.hostname()}/api/webhooks/`,
+            format: "JSON",
           },
         },
-      }),
-      trackingTag = await createShareASaleTag({
-        variables: {
-          input: {
-            src: `https://${os.hostname()}/shareasale-tracking.js?sasmid=${merchantID}&ssmtid=19038`,
-            displayScope: "ORDER_STATUS",
-          },
-        },
-      }),
-      fetchBody = {
-        shop: shop,
-        merchantID: merchantID,
-        masterTagShopifyID: masterTag.data.scriptTagCreate.scriptTag.id,
-        trackingTagShopifyID: trackingTag.data.scriptTagCreate.scriptTag.id,
-      };
-    await fetch(`https://${os.hostname()}/api/editshop/`, {
-      method: "POST",
-      body: JSON.stringify(fetchBody),
-    });
-    await createWebhookSubscription({
-      variables: {
-        topic: "APP_UNINSTALLED",
-        webhookSubscription: {
-          callbackUrl: `https://${os.hostname()}/api/webhooks/`,
-          format: "JSON",
-        },
-      },
-    }).then(window.location.reload());
-  } else {
-    alert("Please enter a valid merchant ID");
+      });
+      //    successIconUpdate(CircleTickOutlineMinor);
+      installationLoadingUpdate(false);
+      window.location.reload();
+    } else {
+      alert("Please enter a valid merchant ID");
+    }
   }
-}
-
+};
 export default Start;

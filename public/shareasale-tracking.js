@@ -1,65 +1,64 @@
-// check for troubleshooting parameter
 const shareasaleScripts = document.getElementsByTagName("script"),
   shareasaleLocation = new URL(window.location.href),
   shareasaleTroubleshooting = shareasaleLocation.searchParams.get(
     "troubleshooting"
   );
-// get master tag ID and merchant ID from shareasale-tracking.js script
 for (let x of shareasaleScripts) {
   if (x.src.includes("shareasale-tracking.js")) {
     var shareasaleTrackingURL = new URL(x.src),
-      masterTagID = shareasaleTrackingURL.searchParams.get("ssmtid"),
-      merchantID = shareasaleTrackingURL.searchParams.get("sasmid");
-    console.log(shareasaleTrackingURL);
+      shareasaleMerchantID = shareasaleTrackingURL.searchParams.get("sasmid"),
+      shareasaleMasterTagID = shareasaleTrackingURL.searchParams.get("ssmtid"),
+      shareasaleStoreID = shareasaleTrackingURL.searchParams.get("scid"),
+      shareasaleXtypeMode = shareasaleTrackingURL.searchParams.get("xtm"),
+      shareasaleXtypeValue = shareasaleTrackingURL.searchParams.get("xtv"),
+      shareasaleChannelDeduplication = shareasaleTrackingURL.searchParams.get(
+        "cd"
+      );
     break;
   }
 }
-
-// check for sas_m_awin cookie
-const sas_m_awin_cookie = shareasaleGetCookie("sas_m_awin");
-// set Beacon URL - pass checkout object as the order
-const shareasaleBeaconURL = createShareasalePixelURL(Shopify.checkout);
-
-// if shop and sas_m_awin cookie returned
+const sas_m_awin_cookie = shareasaleGetCookie("sas_m_awin"),
+  shareasaleChannel = shareasaleGetCookie("source"),
+  sas_sscid = sas_m_awin_cookie ? JSON.parse(sas_m_awin_cookie).clickId : null;
 if (Shopify.shop && sas_m_awin_cookie) {
-  // >> add beacon event listener
+  shareasaleRun();
+}
+/**
+ * Runs shareasale tracking
+ */
+async function shareasaleRun() {
   document.addEventListener("visibilitychange", fireShareasaleBeacon);
-  // >> store order ID and shop
   const shareasaleFetchBody = {
-    order_id: window.Shopify.checkout.order_id,
+    order_id: Shopify.checkout.order_id,
     shop: Shopify.shop,
   };
-  // >> post order ID and shop to api/order/ endpoint
-  fetch(
-    `http://corsanywhere.herokuapp.com/${shareasaleTrackingURL.origin}/api/order/`,
-    {
-      method: "POST",
-      body: JSON.stringify(shareasaleFetchBody),
+  try {
+    const sendToServer = await fetch(
+        `${shareasaleTrackingURL.origin}/api/order/`,
+        {
+          method: "POST",
+          body: JSON.stringify(shareasaleFetchBody),
+        }
+      ),
+      results = await sendToServer.json();
+    document.removeEventListener("visibilitychange", fireShareasaleBeacon);
+    const shareasalePixelURL = createShareasalePixelURL(results);
+    if (shareasalePixelURL) {
+      shareasalePixelAppend(shareasalePixelURL, shareasaleMasterTagID);
     }
-  ) // return order metafield - order ID & new customer status
-    .then((x) => {
-      return x.json();
-    })
-    .then((x) => {
-      console.log(x);
-      // remove beacon event listener
-      document.removeEventListener("visibilitychange", fireShareasaleBeacon);
-      // set shareasale pixel URL
-      const shareasalePixelURL = createShareasalePixelURL(x);
-      // append pixel to confirmation page
-      if (shareasalePixelURL) {
-        shareasalePixelAppend(shareasalePixelURL, masterTagID);
-      }
-    })
-    .catch((x) => {
-      console.log("Pixel Failed. Sending fallback beacon: " + x);
-      fireShareasaleBeacon();
-      document.removeEventListener("visibilitychange", fireShareasaleBeacon);
-    });
+  } catch (error) {
+    console.log("ShareASale Pixel Failed. Appending basic tracking. " + error);
+    appendBasicPixel();
+    document.removeEventListener("visibilitychange", fireShareasaleBeacon);
+  }
 }
-
+/**
+ * Builds pixel URL for both advanced pixel and basic fallback pixel
+ * @param {object} order Order data to buil pixel with
+ * @returns string
+ */
 function createShareasalePixelURL(order) {
-  var sas_merchantID = "44911",
+  var sas_merchantID = shareasaleMerchantID,
     sas_currency = Shopify.checkout.presentment_currency,
     sas_skulist = [],
     sas_pricelist = [],
@@ -92,9 +91,6 @@ function createShareasalePixelURL(order) {
   } else {
     var sas_orderName = shareasaleGetOrderRef(),
       sas_newcustomer = "",
-      sas_sscid = sas_m_awin_cookie
-        ? JSON.parse(sas_m_awin_cookie).clickId
-        : null,
       sas_version = "shopify_app_1.0_beacon";
   }
   Shopify.checkout.line_items.map((x) => {
@@ -106,18 +102,62 @@ function createShareasalePixelURL(order) {
   if (sas_sscid) {
     shareasalePixelURL += `&sscid=${sas_sscid}&sscidmode=6`;
   }
+  // Append additional settings. Because booleans and null types will be addded to
+  // the pixel as strings, check against these as well
+  if (shareasaleStoreID && !shareasaleStoreID === "null") {
+    shareasalePixelURL += `&storeID=${shareasaleStoreID}`;
+  }
+  if (shareasaleXtypeValue && !shareasaleXtypeValue === "null") {
+    if (shareasaleXtypeMode === "static") {
+      shareasalePixelURL += `&xtype=${shareasaleXtypeValue}`;
+    } else if (shareasaleXtypeMode === "dynamic") {
+      shareasalePixelURL += `&xtype=${window[shareasaleXtypeValue]}`;
+    }
+  }
+  if (
+    shareasaleChannel &&
+    shareasaleChannelDeduplication &&
+    shareasaleChannelDeduplication !== "false"
+  ) {
+    if (
+      !shareasaleChannel.match(/sas|shareasale/gi) &&
+      !shareasaleChannel.match(/ppc|display|google|adwords|googleads/gi)
+    ) {
+      shareasalePixelURL += `&autovoid=1&channel=${shareasaleChannel}`;
+    } else {
+      shareasalePixelURL += `&autovoid=0&channel=${shareasaleChannel}`;
+    }
+  }
+  // Below adds a conversion script that allows easy use of the Master Tag plugins
+  // by creating the AWIN sale object
+  if (shareasaleMasterTagID !== "19038" && order.order_id) {
+    const shareasaleConversionScript = document.createElement("script");
+    shareasaleConversionScript.innerHTML = `
+     var AWIN = AWIN || {};
+     AWIN.Tracking = AWIN.Tracking || {};
+     AWIN.Tracking.Sale = AWIN.Tracking.Sale || {};
+     AWIN.Tracking.Sale.amount = '${sas_subtotal}';
+     AWIN.Tracking.Sale.channel = '${shareasaleChannel}';
+     AWIN.Tracking.Sale.orderRef = '${sas_orderName}';
+     AWIN.Tracking.Sale.voucher = '${sas_couponcode}';
+     AWIN.Tracking.Sale.currency = '${sas_currency}'`;
+    document.body.appendChild(shareasaleConversionScript);
+  }
   return shareasalePixelURL;
 }
-
-function shareasalePixelAppend(url, mastertagID) {
+/**
+ * Adds the pixel and the master tag to the Thank You page
+ * @param {string} url The src value for the tracking pixel
+ * @param {string|number} shareasaleMastertagID The ID of the master tag to append to the page
+ */
+function shareasalePixelAppend(url, shareasaleMastertagID) {
   var shareasaleImage = new Image();
   shareasaleImage.src = url;
   document.body.appendChild(shareasaleImage);
   var shareasaleMasterTag = document.createElement("script");
-  shareasaleMasterTag.src = `https://www.dwin1.com/${mastertagID}.js`;
+  shareasaleMasterTag.src = `https://www.dwin1.com/${shareasaleMastertagID}.js`;
   document.body.appendChild(shareasaleMasterTag);
 }
-
 function shareasaleGetOrderRef() {
   var orderRef;
   try {
@@ -142,7 +182,6 @@ function shareasaleGetOrderRef() {
   }
   return orderRef;
 }
-
 function shareasaleGetCookie(cname) {
   var name = cname + "=";
   var decodedCookie = decodeURIComponent(document.cookie);
@@ -158,15 +197,13 @@ function shareasaleGetCookie(cname) {
   }
   return "";
 }
-
 function fireShareasaleBeacon() {
   if (document.visibilityState === "hidden") {
     navigator.sendBeacon(createShareasalePixelURL(Shopify.checkout));
   }
 }
-
 function appendBasicPixel() {
   const shareasaleBasicPixel = new Image();
   shareasaleBasicPixel.src = createShareasalePixelURL(Shopify.checkout);
-  document.body.appendChild();
+  document.body.appendChild(shareasaleBasicPixel);
 }

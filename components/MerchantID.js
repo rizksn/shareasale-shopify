@@ -5,6 +5,7 @@ import { useMutation } from "react-apollo";
 const os = require("os");
 
 const MerchantID = (props) => {
+  const [merchantIDLoading, merchantIDLoadingUpdate] = useState(false);
   const { merchantSettings } = props;
   const [textFieldMerchantID, setTextFieldMerchantID] = useState(
     merchantSettings.merchantID
@@ -26,7 +27,6 @@ const MerchantID = (props) => {
       }
     `
   );
-
   return (
     <Card
       title="Merchant ID:"
@@ -45,43 +45,8 @@ const MerchantID = (props) => {
       ]}
       primaryFooterAction={{
         content: "Update Merchant ID",
-        onAction: () => {
-          const merchantID = document.getElementById("shareasaleMerchantID")
-            .value;
-          console.log(merchantSettings.trackingTagShopifyID);
-          updateTrackingScript({
-            variables: {
-              id: `${merchantSettings.trackingTagShopifyID}`,
-              input: {
-                src: `https://${os.hostname()}/shareasale-tracking.js?sasmid=${merchantID}&ssmtid=${
-                  merchantSettings.masterTagID
-                }&scid=${merchantSettings.storesConnectStoreID}&xtm=${
-                  merchantSettings.xtypeMode
-                }&xtv=${merchantSettings.xtypeValue}&cd=${
-                  merchantSettings.channelDeduplication
-                }`,
-              },
-            },
-          })
-            .then((x) => {
-              console.log("I think we did it... go check");
-            })
-            .then((x) => {
-              const fetchBody = {
-                shop: props.shop,
-                merchantID: merchantID,
-              };
-              fetch(`https://${os.hostname()}/api/editshop/`, {
-                method: "POST",
-                body: JSON.stringify(fetchBody),
-              });
-              console.log(`We set the MID as ${merchantID}`);
-              const shareasaleMerchantID = document.getElementById(
-                "shareasaleMerchantID"
-              );
-              shareasaleMerchantID.setAttribute("disabled", "");
-            });
-        },
+        loading: merchantIDLoading,
+        onAction: merchantIDClicked,
       }}
     >
       <Card.Section>
@@ -108,6 +73,38 @@ const MerchantID = (props) => {
       </Card.Section>
     </Card>
   );
+  async function merchantIDClicked() {
+    merchantIDLoadingUpdate(true);
+    const merchantID = document.getElementById("shareasaleMerchantID").value;
+    await updateTrackingScript({
+      variables: {
+        id: `${merchantSettings.trackingTagShopifyID}`,
+        input: {
+          src: `https://${os.hostname()}/shareasale-tracking.js?sasmid=${merchantID}&ssmtid=${
+            merchantSettings.masterTagID
+          }&scid=${merchantSettings.storesConnectStoreID}&xtm=${
+            merchantSettings.xtypeMode
+          }&xtv=${merchantSettings.xtypeValue}&cd=${
+            merchantSettings.channelDeduplication
+          }`,
+        },
+      },
+    });
+
+    const fetchBody = {
+      shop: props.shop,
+      merchantID: merchantID,
+    };
+    await fetch(`https://${os.hostname()}/api/editshop/`, {
+      method: "POST",
+      body: JSON.stringify(fetchBody),
+    });
+    const shareasaleMerchantID = document.getElementById(
+      "shareasaleMerchantID"
+    );
+    shareasaleMerchantID.setAttribute("disabled", "");
+    merchantIDLoadingUpdate(false);
+  }
 };
 
 export default MerchantID;

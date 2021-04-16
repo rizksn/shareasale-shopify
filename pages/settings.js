@@ -50,10 +50,7 @@ const Settings = () => {
     <Page title="ShareASale Shopify Tracker" narrowWidth>
       <Layout>
         <Layout.Section>
-          <APICenter
-            shop={shopQuery.shop.myshopifyDomain}
-            merchantSettings={merchantSettings}
-          />
+          <APICenter shop={shopQuery.shop.myshopifyDomain} />
         </Layout.Section>
         <Layout.Section>
           <StoreID

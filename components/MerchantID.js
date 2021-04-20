@@ -99,6 +99,7 @@ const MerchantID = (props) => {
       method: "POST",
       body: JSON.stringify(fetchBody),
     });
+
     const shareasaleMerchantID = document.getElementById(
       "shareasaleMerchantID"
     );

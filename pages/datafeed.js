@@ -1,19 +1,14 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "react-apollo";
-import {
-  Page,
-  Layout,
-  EmptyState,
-  Card,
-  Button,
-  Spinner,
-} from "@shopify/polaris";
+import { Page, Layout, EmptyState, Card, Spinner } from "@shopify/polaris";
 import gql from "graphql-tag";
 import { CSVLink } from "react-csv";
-import useForm from "../hooks/useForm";
+const os = require("os");
 
 const Datafeed = () => {
   const [data, setData] = useState([{ dataProducts: [] }]);
+
+  const [download, setDownload] = useState("");
 
   const { loading: notReady, data: shopQuery } = useQuery(gql`
     query {
@@ -22,11 +17,25 @@ const Datafeed = () => {
           id
           url
         }
+        myshopifyDomain
       }
     }
   `);
 
-  const { merchantID } = useForm();
+  useEffect(() => {
+    if (!notReady) {
+      getProducts();
+    }
+  }, [!notReady && shopQuery !== undefined]);
+
+  useEffect(() => {
+    if (notReady) {
+      setDownload("downloading...");
+    }
+    if (!notReady && shopQuery !== undefined) {
+      setDownload("Download Datafeed");
+    }
+  });
 
   const csvData = [
     [
@@ -94,36 +103,45 @@ const Datafeed = () => {
   }
 
   let primaryDomain = shopQuery.shop.primaryDomain.url;
+  console.log(primaryDomain);
 
   const getProducts = async () => {
-    var productData = await fetch("https://allbirds.com/products.json");
-    // var productData = await fetch(`https://${primaryDomain}/products.json`);
+    const getShopData = await fetch(`https://${os.hostname()}/api/settings/`, {
+      method: "POST",
+      body: JSON.stringify({ shop: shopQuery.shop.myshopifyDomain }),
+    });
+    const shopData = await getShopData.json();
+    const MID = shopData.merchantID;
 
-    var a = await productData.json();
+    // const getProductData = await fetch("https://allbirds.com/products.json");
+    const getProductData = await fetch(`${primaryDomain}/products.json`);
+    const productData = await getProductData.json();
+
+    console.log(productData);
 
     try {
-      for (let i = 0; i < a.products.length; i++) {
+      for (let i = 0; i < productData.products.length; i++) {
         // if (a.products[i].variants) {
-        for (let j = 0; j < a.products[i].variants.length; j++) {
+        for (let j = 0; j < productData.products[i].variants.length; j++) {
           var array = [];
           // SKU
-          array.push(a.products[i].variants[j].sku);
+          array.push(productData.products[i].variants[j].sku);
           // Name
-          array.push(a.products[i].title);
+          array.push(productData.products[i].title);
           // URL to Product
-          array.push(`${primaryDomain}/${a.products[i].handle}`);
+          array.push(`${primaryDomain}/${productData.products[i].handle}`);
           // Price
-          array.push(a.products[i].variants[j].price);
+          array.push(productData.products[i].variants[j].price);
           // Retail Price
           array.push("");
           // URL to Image
-          a.products[i].variants[j].featured_image == null
-            ? array.push(a.products[i].images[0].src)
-            : array.push(a.products[i].variants[j].featured_image);
+          productData.products[i].variants[j].featured_image == null
+            ? array.push(productData.products[i].images[0].src)
+            : array.push(productData.products[i].variants[j].featured_image);
           // URL to Thumbnail Image
-          a.products[i].variants[j].featured_image == null
-            ? array.push(a.products[i].images[1].src)
-            : array.push(a.products[i].variants[j].featured_image);
+          productData.products[i].variants[j].featured_image == null
+            ? array.push(productData.products[i].images[1].src)
+            : array.push(productData.products[i].variants[j].featured_image);
           // Commission
           array.push("");
           // Category
@@ -132,14 +150,17 @@ const Datafeed = () => {
           array.push(1);
           // Description
           array.push(
-            a.products[i].body_html.replaceAll(/(<.*?>)|(<\/.*?>)/g, "")
+            productData.products[i].body_html.replaceAll(
+              /(<.*?>)|(<\/.*?>)/g,
+              ""
+            )
           );
           // Search Terms
           array.push("");
           // Status
           array.push("");
           // MerchantID
-          array.push(merchantID);
+          array.push(MID);
 
           csvData.push(array);
         }
@@ -149,10 +170,6 @@ const Datafeed = () => {
       console.log(error);
     }
   };
-
-  if (!notReady) {
-    getProducts();
-  }
 
   return (
     <Page title="ShareASale Shopify Tracker" narrowWidth>
@@ -195,7 +212,7 @@ const Datafeed = () => {
                     "inset 0 1px 0 0 #6774c8, 0 1px 0 0 rgb(22 29 37 / 5%), 0 0 0 0 transparent",
                 }}
               >
-                Download Datafeed
+                {download}
               </CSVLink>
             </EmptyState>
           </Card>
